@@ -22,6 +22,10 @@ type Storage interface {
 	GetUserByID(id string) (*User, error)
 	VerifyPassword(email, password string) (*User, error)
 	GetAllUsers() ([]*User, error)
+
+	StoreRefreshToken(userID, tokenHash string) error
+	ValidateRefreshToken(tokenHash string) (string, error)
+	RevokeRefreshToken(tokenHash string) error
 }
 
 type MemoryStorage struct {
@@ -130,4 +134,21 @@ func (s *MemoryStorage) GetAllUsers() ([]*User, error) {
 	}
 
 	return users, nil
+}
+
+// StoreRefreshToken - заглушка для memory storage
+func (s *MemoryStorage) StoreRefreshToken(userID, tokenHash string) error {
+	// В памяти не храним refresh токены для демо
+	return nil
+}
+
+// ValidateRefreshToken - заглушка для memory storage
+func (s *MemoryStorage) ValidateRefreshToken(tokenHash string) (string, error) {
+	// В памяти нет refresh токенов
+	return "", errors.New("refresh tokens not supported in memory storage")
+}
+
+// RevokeRefreshToken - заглушка для memory storage
+func (s *MemoryStorage) RevokeRefreshToken(tokenHash string) error {
+	return nil
 }

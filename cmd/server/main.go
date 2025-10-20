@@ -61,6 +61,7 @@ func main() {
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/login-jwt", authHandler.LoginJWT).Methods("POST")
+	r.HandleFunc("/refresh-token", authHandler.RefreshToken).Methods("POST")
 
 	// Session-protected routes
 	sessionRouter := r.PathPrefix("/session").Subrouter()
@@ -88,6 +89,7 @@ func main() {
 	log.Println("   POST /register")
 	log.Println("   POST /login")
 	log.Println("   POST /login-jwt")
+	log.Println("   POST /refresh-token")
 	log.Println("   GET  /session/profile (protected)")
 	log.Println("   POST /session/logout (protected)")
 	log.Println("   GET  /session/users (protected)")

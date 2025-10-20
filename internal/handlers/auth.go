@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"auth-demo/internal/auth"
@@ -128,10 +129,23 @@ func (h *AuthHandler) LoginJWT(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Генерируем JWT токен
-	token, err := h.jwtManager.GenerateToken(user.ID, user.Email)
+	// Генерируем access и refresh токены
+	accessToken, err := h.jwtManager.GenerateAccessToken(user.ID, user.Email)
 	if err != nil {
-		log.Printf("JWT generation error: %v", err)
-		http.Error(w, `{"error": "Failed to generate token"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": "Failed to generate access token"}`, http.StatusInternalServerError)
+		return
+	}
+
+	refreshToken, err := h.jwtManager.GenerateRefreshToken(user.ID)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to generate refresh token"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Хешируем и сохраняем refresh token
+	tokenHash := hashToken(refreshToken)
+	if err := h.userStorage.StoreRefreshToken(user.ID, tokenHash); err != nil {
+		http.Error(w, `{"error": "Failed to store refresh token"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -141,9 +155,59 @@ func (h *AuthHandler) LoginJWT(w http.ResponseWriter, r *http.Request) {
 			"id":    user.ID,
 			"email": user.Email,
 		},
-		"access_token": token,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
+		"expires_in":    15 * 60, // 15 минут в секундах
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// RefreshToken обновляет access token используя refresh token
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if request.RefreshToken == "" {
+		http.Error(w, `{"error": "Refresh token required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Валидируем refresh token
+	tokenHash := hashToken(request.RefreshToken)
+	userID, err := h.userStorage.ValidateRefreshToken(tokenHash)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid refresh token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Получаем данные пользователя
+	user, err := h.userStorage.GetUserByID(userID)
+	if err != nil {
+		http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Генерируем новый access token
+	accessToken, err := h.jwtManager.GenerateAccessToken(user.ID, user.Email)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to generate access token"}`, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"access_token": accessToken,
 		"token_type":   "Bearer",
-		"expires_in":   24 * 3600, // 24 часа в секундах
+		"expires_in":   15 * 60, // 15 минут
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -322,4 +386,10 @@ func (h *AuthHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// Вспомогательная функция для хеширования токена
+func hashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
 }

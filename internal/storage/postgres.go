@@ -140,3 +140,37 @@ func (p *PostgresStorage) GetAllUsers() ([]*User, error) {
 func (p *PostgresStorage) Close() error {
 	return p.db.Close()
 }
+
+// StoreRefreshToken сохраняет refresh токен
+func (p *PostgresStorage) StoreRefreshToken(userID, tokenHash string) error {
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	query := `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`
+	_, err := p.db.Exec(query, userID, tokenHash, expiresAt)
+	return err
+}
+
+// ValidateRefreshToken проверяет refresh токен
+func (p *PostgresStorage) ValidateRefreshToken(tokenHash string) (string, error) {
+	var userID string
+	var expiresAt time.Time
+
+	query := `SELECT user_id, expires_at FROM refresh_tokens WHERE token_hash = $1 AND revoked = false`
+	err := p.db.QueryRow(query, tokenHash).Scan(&userID, &expiresAt)
+	if err != nil {
+		return "", errors.New("invalid refresh token")
+	}
+
+	if time.Now().After(expiresAt) {
+		return "", errors.New("refresh token expired")
+	}
+
+	return userID, nil
+}
+
+// RevokeRefreshToken отзывает refresh токен
+func (p *PostgresStorage) RevokeRefreshToken(tokenHash string) error {
+	query := `UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1`
+	_, err := p.db.Exec(query, tokenHash)
+	return err
+}
