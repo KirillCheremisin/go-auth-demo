@@ -26,7 +26,7 @@ func (jm *JWTManager) GenerateAccessToken(userID, email string) (string, error) 
 		UserID: userID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)), // 15 минут
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Minute)), // 1 минута
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
