@@ -1,0 +1,99 @@
+@startuml
+
+title Auth Demo Project Architecture
+
+package "Web Layer" {
+  [main.go] as Main
+  [handlers.auth.go] as Handlers
+}
+
+package "Auth Layer" {
+  [session_manager.go] as SessionManager
+  [session_interface.go] as SessionInterface
+  [no_encryption_store.go] as NoEncryptStore
+  [jwt.go] as JWTManager
+}
+
+package "Storage Layer" {
+  [postgres.go] as PostgresStorage
+  [memory.go] as MemoryStorage
+}
+
+package "Config Layer" {
+  [config.go] as Config
+}
+
+database "PostgreSQL" as DB
+folder "Sessions Files" as Files
+file ".env" as Env
+
+' Основные зависимости
+Main --> Handlers : uses
+Main --> SessionManager : creates
+Main --> Config : uses
+Main --> PostgresStorage : creates
+
+Handlers --> SessionManager : uses
+Handlers --> JWTManager : uses
+Handlers --> PostgresStorage : uses
+
+SessionManager --> SessionInterface : returns
+SessionManager --> NoEncryptStore : uses
+SessionInterface --> NoEncryptStore : wraps
+
+PostgresStorage --> DB : connects
+NoEncryptStore --> Files : reads/writes
+Config --> Env : reads
+
+' Интерфейсы
+
+
+PostgresStorage .u.|> StorageInterface
+MemoryStorage .u.|> StorageInterface
+Handlers --> StorageInterface
+
+
+
+SessionManager .u.|> SessionManagerInterface
+Handlers --> SessionManagerInterface
+
+note right of Main
+  Точка входа приложения
+  Инициализация компонентов
+  Настройка маршрутов
+  Запуск HTTP сервера
+end note
+
+note right of Handlers
+  Обработчики HTTP запросов:
+  - /register
+  - /login 
+  - /login-jwt
+  - /session/profile
+  - /logout
+end note
+
+note left of SessionInterface
+  Универсальный интерфейс
+  скрывает различия между:
+  - Шифрованными сессиями
+  - Нешифрованными сессиями
+end note
+
+note right of StorageInterface
+  Storage интерфейс:
+  - CreateUser()
+  - GetUserByEmail()
+  - GetUserByID()
+  - VerifyPassword()
+  - GetAllUsers()
+end note
+
+note left of SessionManager
+  SessionManager интерфейс:
+  - GetSession()
+  - SaveSession()
+  - DestroySession()
+end note
+
+@enduml
