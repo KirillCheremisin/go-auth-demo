@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"auth-demo/internal/auth"
@@ -106,7 +108,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// LoginJWT обрабатывает вход через JWT
+// LoginJWT обрабатывает вход через JWT токены
 func (h *AuthHandler) LoginJWT(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Email    string `json:"email"`
@@ -114,17 +116,38 @@ func (h *AuthHandler) LoginJWT(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
 
-	// Здесь будет проверка пароля и генерация JWT
-	// Пока просто возвращаем успех
-	response := map[string]string{
-		"message": "JWT login endpoint - TODO",
+	// Проверяем пользователя
+	user, err := h.userStorage.VerifyPassword(request.Email, request.Password)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid email or password"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Генерируем JWT токен
+	token, err := h.jwtManager.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		log.Printf("JWT generation error: %v", err)
+		http.Error(w, `{"error": "Failed to generate token"}`, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "Login successful (JWT)",
+		"user": map[string]string{
+			"id":    user.ID,
+			"email": user.Email,
+		},
+		"access_token": token,
+		"token_type":   "Bearer",
+		"expires_in":   24 * 3600, // 24 часа в секундах
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -146,10 +169,33 @@ func (h *AuthHandler) SessionMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// JWTMiddleware проверяет JWT токен
 func (h *AuthHandler) JWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: проверка JWT
-		next.ServeHTTP(w, r)
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, `{"error": "Authorization header required"}`, http.StatusUnauthorized)
+			return
+		}
+
+		if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+			http.Error(w, `{"error": "Invalid authorization format"}`, http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := authHeader[7:]
+		claims, err := h.jwtManager.ValidateToken(tokenString)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+
+		// Добавляем данные пользователя в контекст запроса
+		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
+		ctx = context.WithValue(ctx, "user_email", claims.Email)
+		ctx = context.WithValue(ctx, "jwt_claims", claims)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -195,9 +241,49 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) GetProfileJWT(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"message": "Profile endpoint (JWT) - TODO",
+	// Получаем токен из заголовка Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, `{"error": "Authorization header required"}`, http.StatusUnauthorized)
+		return
 	}
+
+	// Проверяем формат: "Bearer <token>"
+	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+		http.Error(w, `{"error": "Invalid authorization format"}`, http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := authHeader[7:]
+
+	// Валидируем токен
+	claims, err := h.jwtManager.ValidateToken(tokenString)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid or expired token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Получаем данные пользователя
+	user, err := h.userStorage.GetUserByID(claims.UserID)
+	if err != nil {
+		http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "Profile data (JWT auth)",
+		"user": map[string]interface{}{
+			"id":         user.ID,
+			"email":      user.Email,
+			"created_at": user.CreatedAt,
+		},
+		"token_info": map[string]interface{}{
+			"issued_at":  claims.IssuedAt,
+			"expires_at": claims.ExpiresAt,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
