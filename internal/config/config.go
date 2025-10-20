@@ -11,6 +11,9 @@ type Config struct {
 	SessionPath     string
 	DatabaseURL     string
 	EncryptSessions bool
+
+	RedisURL     string
+	SessionStore string // "files" или "redis"
 }
 
 func Load() *Config {
@@ -20,6 +23,9 @@ func Load() *Config {
 		SessionPath:     getEnv("SESSION_FILE_PATH", "./sessions"),
 		DatabaseURL:     getEnv("DATABASE_URL", ""),
 		EncryptSessions: getEnvBool("ENCRYPT_SESSIONS", true), // По умолчанию шифруем
+
+		RedisURL:     getEnv("REDIS_URL", ""),
+		SessionStore: getEnv("SESSION_STORE", "files"),
 	}
 }
 

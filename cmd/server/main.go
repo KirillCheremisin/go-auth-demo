@@ -49,7 +49,10 @@ func main() {
 		cfg.SessionPath,
 		cfg.SessionSecret,
 		cfg.EncryptSessions,
+		cfg.RedisURL,
+		cfg.SessionStore,
 	)
+
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
 
 	authHandler := handlers.NewAuthHandler(userStorage, sessionManager, jwtManager)
@@ -83,7 +86,12 @@ func main() {
 
 	log.Printf("🔐 Session encryption: %v", cfg.EncryptSessions)
 	log.Println("🚀 Server starting on http://localhost:8080")
-	log.Printf("📁 Session files will be stored in: %s\n", cfg.SessionPath)
+	log.Printf("🔐 Session storage: %s", cfg.SessionStore)
+	if cfg.SessionStore == "redis" {
+		log.Printf("📍 Redis URL: %s", cfg.RedisURL)
+	} else {
+		log.Printf("📁 Session files will be stored in: %s\n", cfg.SessionPath)
+	}
 	log.Println("📍 Available endpoints:")
 	log.Println("   GET  /health")
 	log.Println("   POST /register")

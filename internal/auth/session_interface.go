@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gorilla/sessions"
@@ -20,12 +21,14 @@ type SessionInterface interface {
 type UniversalSession struct {
 	encryptSessions bool
 	session         interface{}
+	sessionManager  *SessionManager
 }
 
-func NewUniversalSession(encryptSessions bool, session interface{}) *UniversalSession {
+func NewUniversalSession(encryptSessions bool, session interface{}, sessionManager *SessionManager) *UniversalSession {
 	return &UniversalSession{
 		encryptSessions: encryptSessions,
 		session:         session,
+		sessionManager:  sessionManager,
 	}
 }
 
@@ -55,9 +58,21 @@ func (us *UniversalSession) Save(w http.ResponseWriter, r *http.Request) error {
 
 func (us *UniversalSession) Destroy(w http.ResponseWriter, r *http.Request) {
 	if us.encryptSessions {
-		session := us.session.(*sessions.Session)
-		session.Options.MaxAge = -1
-		session.Save(r, w)
+		// Надежно получаем session ID
+		sessionID := us.getSessionID(r)
+		if sessionID == "" {
+			log.Printf("⚠️ Cannot destroy session - ID not found")
+			return
+		}
+
+		// Удаляем из хранилища
+		if us.sessionManager.sessionStore == "redis" {
+			us.sessionManager.redisStorage.DeleteSession(sessionID)
+		}
+
+		// Удаляем cookie
+		us.clearSessionCookie(w)
+
 	} else {
 		us.session.(*Session).Destroy(w)
 	}
@@ -79,4 +94,29 @@ func (us *UniversalSession) GetUserID() string {
 		}
 	}
 	return ""
+}
+
+// Вспомогательный метод для получения ID
+func (us *UniversalSession) getSessionID(r *http.Request) string {
+	// Пробуем разные источники в порядке приоритета
+	sources := []string{"auth-session", "gorilla.sessions", "session"}
+
+	for _, name := range sources {
+		if cookie, err := r.Cookie(name); err == nil && cookie.Value != "" {
+			return cookie.Value
+		}
+	}
+	return ""
+}
+
+// Вспомогательный метод для очистки cookie
+func (us *UniversalSession) clearSessionCookie(w http.ResponseWriter) {
+	cookie := &http.Cookie{
+		Name:     "auth-session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+	}
+	http.SetCookie(w, cookie)
 }
