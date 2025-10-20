@@ -25,7 +25,7 @@ func NewPostgresStorage(connectionString string) (*PostgresStorage, error) {
 	// Проверяем подключение
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := db.PingContext(ctx); err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (p *PostgresStorage) CreateUser(email, password string) (*User, error) {
 	}
 
 	user := &User{
-		ID:        generateID(),
+		ID:        generateUserID(),
 		Email:     email,
 		Password:  string(hashedPassword),
 		CreatedAt: time.Now(),
