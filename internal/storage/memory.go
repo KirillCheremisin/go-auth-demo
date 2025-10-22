@@ -26,6 +26,7 @@ type Storage interface {
 	StoreRefreshToken(userID, tokenHash string) error
 	ValidateRefreshToken(tokenHash string) (string, error)
 	RevokeRefreshToken(tokenHash string) error
+	UpdateUser(userID string, updates map[string]interface{}) (*User, error)
 }
 
 type MemoryStorage struct {
@@ -134,6 +135,26 @@ func (s *MemoryStorage) GetAllUsers() ([]*User, error) {
 	}
 
 	return users, nil
+}
+
+// UpdateUser - заглушка для memory storage
+func (s *MemoryStorage) UpdateUser(userID string, updates map[string]interface{}) (*User, error) {
+	user, err := s.GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Обновляем поля
+	if email, ok := updates["email"].(string); ok {
+		user.Email = email
+	}
+
+	// display_name пока игнорируем, т.к. в модели User нет этого поля
+	// if displayName, ok := updates["display_name"].(string); ok {
+	// В memory storage пока нет display_name, можно добавить позже
+	//}
+
+	return user, nil
 }
 
 // StoreRefreshToken - заглушка для memory storage

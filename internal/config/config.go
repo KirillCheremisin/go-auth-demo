@@ -14,6 +14,8 @@ type Config struct {
 
 	RedisURL     string
 	SessionStore string // "files" или "redis"
+
+	GRPCPort string
 }
 
 func Load() *Config {
@@ -26,6 +28,8 @@ func Load() *Config {
 
 		RedisURL:     getEnv("REDIS_URL", ""),
 		SessionStore: getEnv("SESSION_STORE", "files"),
+
+		GRPCPort: getEnv("GRPC_PORT", "50051"),
 	}
 }
 

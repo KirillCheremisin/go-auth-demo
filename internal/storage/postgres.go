@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	//"github.com/jackc/pgx/v5/stdlib"
@@ -31,6 +33,11 @@ func NewPostgresStorage(connectionString string) (*PostgresStorage, error) {
 	}
 
 	return &PostgresStorage{db: db}, nil
+}
+
+// Close закрывает подключение к БД
+func (p *PostgresStorage) Close() error {
+	return p.db.Close()
 }
 
 // CreateUser создает нового пользователя в PostgreSQL
@@ -136,9 +143,37 @@ func (p *PostgresStorage) GetAllUsers() ([]*User, error) {
 	return users, nil
 }
 
-// Close закрывает подключение к БД
-func (p *PostgresStorage) Close() error {
-	return p.db.Close()
+// UpdateUser обновляет данные пользователя
+func (p *PostgresStorage) UpdateUser(userID string, updates map[string]interface{}) (*User, error) {
+	// Начинаем построение SQL запроса
+	query := "UPDATE users SET "
+	params := []interface{}{}
+	paramCount := 1
+
+	// Динамически добавляем поля для обновления
+	for field, value := range updates {
+		if field == "email" || field == "display_name" {
+			query += field + " = $" + strconv.Itoa(paramCount) + ", "
+			params = append(params, value)
+			paramCount++
+		}
+	}
+
+	// Убираем последнюю запятую и добавляем WHERE
+	query = strings.TrimSuffix(query, ", ")
+	query += " WHERE id = $" + strconv.Itoa(paramCount) + " RETURNING id, email, password_hash, created_at"
+	params = append(params, userID)
+
+	// Выполняем запрос
+	row := p.db.QueryRow(query, params...)
+
+	user := &User{}
+	err := row.Scan(&user.ID, &user.Email, &user.Password, &user.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // StoreRefreshToken сохраняет refresh токен

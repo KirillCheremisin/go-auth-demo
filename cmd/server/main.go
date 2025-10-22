@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"auth-demo/internal/auth"
 	"auth-demo/internal/config"
+	"auth-demo/internal/grpc"
 	"auth-demo/internal/handlers"
 	"auth-demo/internal/storage"
 
@@ -84,9 +89,35 @@ func main() {
 		w.Write([]byte(`{"status": "OK", "message": "Server is running!"}`))
 	}).Methods("GET")
 
+	// Создаем и запускаем gRPC сервер
+	grpcServer := grpc.NewServer(cfg, userStorage)
+
+	// Запускаем gRPC сервер в отдельной goroutine
+	go func() {
+		log.Printf("🚀 gRPC server starting on port %s", cfg.GRPCPort)
+		if err := grpcServer.Start(); err != nil {
+			log.Fatalf("Failed to start gRPC server: %v", err)
+		}
+	}()
+
+	// Создаем HTTP сервер с таймаутами
+	httpServer := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+
+	// Запускаем HTTP сервер в отдельной goroutine
+	go func() {
+		log.Println("🚀 HTTP server starting on http://localhost:8080")
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+
 	log.Printf("🔐 Session encryption: %v", cfg.EncryptSessions)
 	log.Println("🚀 Server starting on http://localhost:8080")
 	log.Printf("🔐 Session storage: %s", cfg.SessionStore)
+	log.Printf("🔧 gRPC Port: %s", cfg.GRPCPort)
 	if cfg.SessionStore == "redis" {
 		log.Printf("📍 Redis URL: %s", cfg.RedisURL)
 	} else {
@@ -103,5 +134,27 @@ func main() {
 	log.Println("   GET  /session/users (protected)")
 	log.Println("   GET  /jwt/profile (protected)")
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	//log.Fatal(http.ListenAndServe(":8080", r))
+
+	// === GRACEFUL SHUTDOWN ===
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Println("🛑 Shutting down servers...")
+
+	// Останавливаем gRPC сервер
+	grpcServer.Stop()
+
+	// Останавливаем HTTP сервер
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := httpServer.Shutdown(ctx); err != nil {
+		log.Printf("HTTP server shutdown error: %v", err)
+	} else {
+		log.Println("🛑 Stopping HTTP server...")
+	}
+
+	log.Println("✅ Servers stopped gracefully")
 }
