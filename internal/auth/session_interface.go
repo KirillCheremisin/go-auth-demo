@@ -52,10 +52,8 @@ func (us *UniversalSession) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Удаляем из хранилища
-	if us.sessionManager.sessionStore == "redis" {
-		us.sessionManager.redisStorage.DeleteSession(sessionID)
-	}
+	// Удаляем из Redis
+	us.sessionManager.redisStorage.DeleteSession(sessionID)
 
 	// Удаляем cookie
 	us.clearSessionCookie(w)
@@ -81,13 +79,8 @@ func (us *UniversalSession) GetUserID() string {
 
 // Вспомогательный метод для получения ID сессии
 func (us *UniversalSession) getSessionID(r *http.Request) string {
-	// Пробуем разные источники в порядке приоритета
-	sources := []string{"auth-session", "gorilla.sessions", "session"}
-
-	for _, name := range sources {
-		if cookie, err := r.Cookie(name); err == nil && cookie.Value != "" {
-			return cookie.Value
-		}
+	if cookie, err := r.Cookie("auth-session"); err == nil && cookie.Value != "" {
+		return cookie.Value
 	}
 	return ""
 }
@@ -105,7 +98,7 @@ func (us *UniversalSession) clearSessionCookie(w http.ResponseWriter) {
 }
 
 // GenerateSessionID генерирует уникальный ID для сессии
-func generateSessionID() string {
+func GenerateSessionID() string {
 	bytes := make([]byte, 16)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)

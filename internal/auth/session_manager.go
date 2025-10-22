@@ -3,7 +3,6 @@ package auth
 import (
 	"auth-demo/internal/storage"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/sessions"
 )
@@ -11,34 +10,15 @@ import (
 type SessionManager struct {
 	store        sessions.Store
 	redisStorage *storage.RedisSessionStorage
-	sessionStore string
 }
 
-func NewSessionManager(sessionPath, secret string, redisURL, sessionStore string) *SessionManager {
-	os.MkdirAll(sessionPath, 0755)
-
-	var store sessions.Store
-	var redisStorage *storage.RedisSessionStorage
-
-	if sessionStore == "redis" {
-		// Используем Redis с шифрованием
-		redisStorage = storage.NewRedisSessionStorage(redisURL)
-		store = NewRedisStore(redisStorage)
-	} else {
-		// Файловое хранилище с шифрованием
-		store = sessions.NewFilesystemStore(sessionPath, []byte(secret))
-		store.(*sessions.FilesystemStore).Options = &sessions.Options{
-			Path:     "/",
-			MaxAge:   3600 * 24, // 24 часа
-			HttpOnly: true,
-			Secure:   false,
-		}
-	}
+func NewSessionManager(secret string, redisURL string) *SessionManager {
+	redisStorage := storage.NewRedisSessionStorage(redisURL)
+	store := NewRedisStore(redisStorage)
 
 	return &SessionManager{
 		store:        store,
 		redisStorage: redisStorage,
-		sessionStore: sessionStore,
 	}
 }
 

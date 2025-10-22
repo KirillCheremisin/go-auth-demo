@@ -31,16 +31,12 @@ func main() {
 	// Конфигурация
 	sessionSecret := os.Getenv("SESSION_SECRET")
 	jwtSecret := os.Getenv("JWT_SECRET")
-	sessionPath := os.Getenv("SESSION_FILE_PATH")
 
 	if sessionSecret == "" {
 		sessionSecret = "fallback-secret-key-change-me"
 	}
 	if jwtSecret == "" {
 		jwtSecret = "fallback-jwt-secret-change-me"
-	}
-	if sessionPath == "" {
-		sessionPath = "./sessions"
 	}
 
 	// Инициализация компонентов
@@ -51,10 +47,8 @@ func main() {
 	defer userStorage.Close()
 
 	sessionManager := auth.NewSessionManager(
-		cfg.SessionPath,
 		cfg.SessionSecret,
 		cfg.RedisURL,
-		cfg.SessionStore,
 	)
 
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
@@ -114,13 +108,8 @@ func main() {
 	}()
 
 	log.Println("🚀 Server starting on http://localhost:8080")
-	log.Printf("🔐 Session storage: %s", cfg.SessionStore)
 	log.Printf("🔧 gRPC Port: %s", cfg.GRPCPort)
-	if cfg.SessionStore == "redis" {
-		log.Printf("📍 Redis URL: %s", cfg.RedisURL)
-	} else {
-		log.Printf("📁 Session files will be stored in: %s\n", cfg.SessionPath)
-	}
+	log.Printf("📍 Redis URL: %s", cfg.RedisURL)
 	log.Println("📍 Available endpoints:")
 	log.Println("   GET  /health")
 	log.Println("   POST /register")

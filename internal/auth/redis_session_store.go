@@ -55,7 +55,7 @@ func (rs *RedisStore) New(r *http.Request, name string) (*sessions.Session, erro
 func (rs *RedisStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
 	// Генерируем ID сессии если нужно
 	if session.ID == "" {
-		session.ID = generateSessionID()
+		session.ID = GenerateSessionID()
 	}
 
 	redisData := convertToStringMap(session.Values)
