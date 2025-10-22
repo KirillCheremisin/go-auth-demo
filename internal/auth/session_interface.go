@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log"
 	"net/http"
 
@@ -17,65 +19,46 @@ type SessionInterface interface {
 	GetUserID() string
 }
 
-// UniversalSession обертка для работы с разными типами сессий
+// UniversalSession обертка для работы с зашифрованными сессиями
 type UniversalSession struct {
-	encryptSessions bool
-	session         interface{}
-	sessionManager  *SessionManager
+	session        *sessions.Session
+	sessionManager *SessionManager
 }
 
-func NewUniversalSession(encryptSessions bool, session interface{}, sessionManager *SessionManager) *UniversalSession {
+func NewUniversalSession(session *sessions.Session, sessionManager *SessionManager) *UniversalSession {
 	return &UniversalSession{
-		encryptSessions: encryptSessions,
-		session:         session,
-		sessionManager:  sessionManager,
+		session:        session,
+		sessionManager: sessionManager,
 	}
 }
 
 func (us *UniversalSession) Set(key string, value interface{}) {
-	if us.encryptSessions {
-		us.session.(*sessions.Session).Values[key] = value
-	} else {
-		us.session.(*Session).Values[key] = value
-	}
+	us.session.Values[key] = value
 }
 
 func (us *UniversalSession) Get(key string) interface{} {
-	if us.encryptSessions {
-		return us.session.(*sessions.Session).Values[key]
-	} else {
-		return us.session.(*Session).Values[key]
-	}
+	return us.session.Values[key]
 }
 
 func (us *UniversalSession) Save(w http.ResponseWriter, r *http.Request) error {
-	if us.encryptSessions {
-		return us.session.(*sessions.Session).Save(r, w)
-	} else {
-		return us.session.(*Session).Save(w)
-	}
+	return us.session.Save(r, w)
 }
 
 func (us *UniversalSession) Destroy(w http.ResponseWriter, r *http.Request) {
-	if us.encryptSessions {
-		// Надежно получаем session ID
-		sessionID := us.getSessionID(r)
-		if sessionID == "" {
-			log.Printf("⚠️ Cannot destroy session - ID not found")
-			return
-		}
-
-		// Удаляем из хранилища
-		if us.sessionManager.sessionStore == "redis" {
-			us.sessionManager.redisStorage.DeleteSession(sessionID)
-		}
-
-		// Удаляем cookie
-		us.clearSessionCookie(w)
-
-	} else {
-		us.session.(*Session).Destroy(w)
+	// Надежно получаем session ID
+	sessionID := us.getSessionID(r)
+	if sessionID == "" {
+		log.Printf("⚠️ Cannot destroy session - ID not found")
+		return
 	}
+
+	// Удаляем из хранилища
+	if us.sessionManager.sessionStore == "redis" {
+		us.sessionManager.redisStorage.DeleteSession(sessionID)
+	}
+
+	// Удаляем cookie
+	us.clearSessionCookie(w)
 }
 
 func (us *UniversalSession) IsAuthenticated() bool {
@@ -96,7 +79,7 @@ func (us *UniversalSession) GetUserID() string {
 	return ""
 }
 
-// Вспомогательный метод для получения ID
+// Вспомогательный метод для получения ID сессии
 func (us *UniversalSession) getSessionID(r *http.Request) string {
 	// Пробуем разные источники в порядке приоритета
 	sources := []string{"auth-session", "gorilla.sessions", "session"}
@@ -119,4 +102,11 @@ func (us *UniversalSession) clearSessionCookie(w http.ResponseWriter) {
 		HttpOnly: true,
 	}
 	http.SetCookie(w, cookie)
+}
+
+// GenerateSessionID генерирует уникальный ID для сессии
+func generateSessionID() string {
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }

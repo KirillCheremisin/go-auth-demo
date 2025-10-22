@@ -6,11 +6,10 @@ import (
 )
 
 type Config struct {
-	SessionSecret   string
-	JWTSecret       string
-	SessionPath     string
-	DatabaseURL     string
-	EncryptSessions bool
+	SessionSecret string
+	JWTSecret     string
+	SessionPath   string
+	DatabaseURL   string
 
 	RedisURL     string
 	SessionStore string // "files" или "redis"
@@ -20,11 +19,10 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		SessionSecret:   getEnv("SESSION_SECRET", "fallback-secret-key"),
-		JWTSecret:       getEnv("JWT_SECRET", "fallback-jwt-secret"),
-		SessionPath:     getEnv("SESSION_FILE_PATH", "./sessions"),
-		DatabaseURL:     getEnv("DATABASE_URL", ""),
-		EncryptSessions: getEnvBool("ENCRYPT_SESSIONS", true), // По умолчанию шифруем
+		SessionSecret: getEnv("SESSION_SECRET", "fallback-secret-key"),
+		JWTSecret:     getEnv("JWT_SECRET", "fallback-jwt-secret"),
+		SessionPath:   getEnv("SESSION_FILE_PATH", "./sessions"),
+		DatabaseURL:   getEnv("DATABASE_URL", ""),
 
 		RedisURL:     getEnv("REDIS_URL", ""),
 		SessionStore: getEnv("SESSION_STORE", "files"),

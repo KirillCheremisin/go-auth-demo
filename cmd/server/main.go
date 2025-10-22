@@ -53,7 +53,6 @@ func main() {
 	sessionManager := auth.NewSessionManager(
 		cfg.SessionPath,
 		cfg.SessionSecret,
-		cfg.EncryptSessions,
 		cfg.RedisURL,
 		cfg.SessionStore,
 	)
@@ -114,7 +113,6 @@ func main() {
 		}
 	}()
 
-	log.Printf("🔐 Session encryption: %v", cfg.EncryptSessions)
 	log.Println("🚀 Server starting on http://localhost:8080")
 	log.Printf("🔐 Session storage: %s", cfg.SessionStore)
 	log.Printf("🔧 gRPC Port: %s", cfg.GRPCPort)
