@@ -40,6 +40,30 @@ func (p *PostgresStorage) Close() error {
 	return p.db.Close()
 }
 
+type User struct {
+	ID        string
+	Email     string
+	Password  string
+	CreatedAt time.Time
+}
+
+type Storage interface {
+	CreateUser(email, password string) (*User, error)
+	GetUserByEmail(email string) (*User, error)
+	GetUserByID(id string) (*User, error)
+	VerifyPassword(email, password string) (*User, error)
+	GetAllUsers() ([]*User, error)
+
+	StoreRefreshToken(userID, tokenHash string) error
+	ValidateRefreshToken(tokenHash string) (string, error)
+	RevokeRefreshToken(tokenHash string) error
+	UpdateUser(userID string, updates map[string]interface{}) (*User, error)
+}
+
+func generateUserID() string {
+	return "user-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+}
+
 // CreateUser создает нового пользователя в PostgreSQL
 func (p *PostgresStorage) CreateUser(email, password string) (*User, error) {
 	// Хешируем пароль
