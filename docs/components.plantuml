@@ -1,99 +1,119 @@
-@startuml
+@startuml Auth Demo Components
+skinparam defaultFontName Arial
+skinparam roundcorner 10
+skinparam shadowing false
 
-title Auth Demo Project Architecture
+title "Auth Demo - Project Structure"
 
-package "Web Layer" {
-  [main.go] as Main
-  [handlers.auth.go] as Handlers
+component "main.go" as Main
+component "config.go" as Config
+component "auth.go" as AuthHandler
+
+package "grpc" {
+  component "server.go" as GRPCServer
+  component "user_service.go" as UserService
+  component "user_service.proto" as Proto
+  component "user_service.pb.go" as PBGo
+  component "user_service_grpc.pb.go" as GRPCPBGo
 }
 
-package "Auth Layer" {
-  [session_manager.go] as SessionManager
-  [session_interface.go] as SessionInterface
-  [no_encryption_store.go] as NoEncryptStore
-  [jwt.go] as JWTManager
+package "auth" {
+  component "session_manager.go" as SessionManager
+  component "session_interface.go" as SessionInterface
+  component "redis_session_store.go" as RedisStore
+  component "jwt.go" as JWTManager
 }
 
-package "Storage Layer" {
-  [postgres.go] as PostgresStorage
-  [memory.go] as MemoryStorage
+package "storage" {
+  component "postgres.go" as PostgresStorage
+  component "redis_session.go" as RedisSessionStorage
 }
 
-package "Config Layer" {
-  [config.go] as Config
+database "PostgreSQL" as PostgreSQL {
+  component "users" as UsersTable
+  component "refresh_tokens" as RefreshTokensTable
 }
 
-database "PostgreSQL" as DB
-folder "Sessions Files" as Files
-file ".env" as Env
+database "Redis" as Redis {
+  component "session:*" as SessionKeys
+}
 
-' Основные зависимости
-Main --> Handlers : uses
-Main --> SessionManager : creates
-Main --> Config : uses
-Main --> PostgresStorage : creates
+' === Connections ===
 
-Handlers --> SessionManager : uses
-Handlers --> JWTManager : uses
-Handlers --> PostgresStorage : uses
+Main --> Config
+Main --> AuthHandler
+Main --> GRPCServer
+Main --> SessionManager
 
-SessionManager --> SessionInterface : returns
-SessionManager --> NoEncryptStore : uses
-SessionInterface --> NoEncryptStore : wraps
+AuthHandler --> SessionManager
+AuthHandler --> JWTManager
+AuthHandler --> PostgresStorage
 
-PostgresStorage --> DB : connects
-NoEncryptStore --> Files : reads/writes
-Config --> Env : reads
+SessionManager --> RedisStore
+RedisStore --> RedisSessionStorage
+SessionInterface --> SessionManager
 
-' Интерфейсы
+GRPCServer --> UserService
+UserService --> PostgresStorage
+UserService --> Proto
+Proto --> PBGo
+Proto --> GRPCPBGo
 
+PostgresStorage --> PostgreSQL
+RedisSessionStorage --> Redis
 
-PostgresStorage .u.|> StorageInterface
-MemoryStorage .u.|> StorageInterface
-Handlers --> StorageInterface
+PostgresStorage --> UsersTable
+PostgresStorage --> RefreshTokensTable
+RedisSessionStorage --> SessionKeys
 
+component "go.mod" as GoMod
+component ".env" as Env
+component "generate_proto.bat" as GenerateProto
+component "README.md" as Readme
 
-
-SessionManager .u.|> SessionManagerInterface
-Handlers --> SessionManagerInterface
+GoMod --> Main
+Env --> Config
+GenerateProto --> Proto
 
 note right of Main
-  Точка входа приложения
-  Инициализация компонентов
-  Настройка маршрутов
-  Запуск HTTP сервера
-end note
-
-note right of Handlers
-  Обработчики HTTP запросов:
-  - /register
-  - /login 
-  - /login-jwt
-  - /session/profile
-  - /logout
-end note
-
-note left of SessionInterface
-  Универсальный интерфейс
-  скрывает различия между:
-  - Шифрованными сессиями
-  - Нешифрованными сессиями
-end note
-
-note right of StorageInterface
-  Storage интерфейс:
-  - CreateUser()
-  - GetUserByEmail()
-  - GetUserByID()
-  - VerifyPassword()
-  - GetAllUsers()
+  Application entry point
+  Starts HTTP (:8080) + gRPC (:50051)
+  Graceful shutdown
+  Initializes all components
 end note
 
 note left of SessionManager
-  SessionManager интерфейс:
-  - GetSession()
-  - SaveSession()
-  - DestroySession()
+  Uses: SessionManager struct
+  Manages: UniversalSession
+  Redis-only sessions
+  24h expiration
+end note
+
+note right of AuthHandler
+  Uses: AuthHandler struct
+  HTTP endpoints:
+  • POST /register
+  • POST /login (session)
+  • POST /login-jwt (token)
+  • POST /refresh-token
+  • GET  /session/profile
+  • GET  /jwt/profile
+  • POST /session/logout
+  • GET  /session/users
+end note
+
+note bottom of PostgresStorage
+  Uses: PostgresStorage struct
+  Implements: Storage interface
+  Methods: CreateUser, GetUserByID,
+  VerifyPassword, StoreRefreshToken
+end note
+
+note right of RedisSessionStorage
+  Uses: RedisSessionStorage struct
+  Methods: StoreSession, GetSession,
+  DeleteSession
+  Keys: session:*
 end note
 
 @enduml
