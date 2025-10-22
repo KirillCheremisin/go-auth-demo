@@ -164,7 +164,7 @@ go mod download
 
 ### 3. Создание .env файла
 Создайте файл .env в корне проекта:
-```plaintext
+```env
 DATABASE_URL=postgres://username:password@localhost:5432/auth_demo?sslmode=disable
 SESSION_SECRET=your-super-secret-session-key-change-in-production
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
