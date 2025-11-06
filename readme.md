@@ -279,5 +279,7 @@ curl -X POST http://localhost:8080/login-jwt
 ```
 
 Приложение будет доступно по адресу: http://localhost:8080
+
 Спецификация Swagger будет доступна по адресу: http://localhost:8080/swagger/
+
 Схема plantuml в файле /docs/components.plantuml
