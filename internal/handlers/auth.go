@@ -32,6 +32,16 @@ func NewAuthHandler(userStorage storage.Storage, sessionManager SessionManager, 
 }
 
 // Register обрабатывает регистрацию пользователя
+// Register godoc
+// @Summary Регистрация пользователя
+// @Description Создает нового пользователя
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body string true "Данные регистрации" example({"email": "user@example.com", "password": "password123"})
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Email    string `json:"email"`
@@ -59,6 +69,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login обрабатывает вход через сессии
+// Login godoc
+// @Summary Вход через сессии
+// @Description Аутентификация пользователя и создание сессии
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body string true "Данные входа" example({"email": "user@example.com", "password": "password123"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Email    string `json:"email"`
@@ -110,6 +130,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // LoginJWT обрабатывает вход через JWT токены
+// LoginJWT godoc
+// @Summary Вход через JWT
+// @Description Аутентификация пользователя и получение JWT токенов
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body string true "Данные входа" example({"email": "user@example.com", "password": "password123"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /login-jwt [post]
 func (h *AuthHandler) LoginJWT(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Email    string `json:"email"`
@@ -167,6 +197,17 @@ func (h *AuthHandler) LoginJWT(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefreshToken обновляет access token используя refresh token
+// RefreshToken godoc
+// @Summary Обновление access token
+// @Description Обновляет access token используя refresh token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body string true "Refresh token" example({"refresh_token": "eyJhbGciOiJ..."})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /refresh-token [post]
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		RefreshToken string `json:"refresh_token"`
@@ -264,6 +305,15 @@ func (h *AuthHandler) JWTMiddleware(next http.Handler) http.Handler {
 }
 
 // GetProfile возвращает данные пользователя
+// GetProfile godoc
+// @Summary Получение профиля (сессии)
+// @Description Возвращает данные пользователя через сессии
+// @Tags session
+// @Produce json
+// @Security CookieAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /session/profile [get]
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	session, err := h.sessionManager.GetSession(r, "auth-session")
 	if err != nil {
@@ -304,6 +354,15 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetProfileJWT godoc
+// @Summary Получение профиля (JWT)
+// @Description Возвращает данные пользователя через JWT токен
+// @Tags jwt
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Router /jwt/profile [get]
 func (h *AuthHandler) GetProfileJWT(w http.ResponseWriter, r *http.Request) {
 	// Получаем токен из заголовка Authorization
 	authHeader := r.Header.Get("Authorization")
@@ -352,6 +411,14 @@ func (h *AuthHandler) GetProfileJWT(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout выход пользователя, остановка сессии
+// Logout godoc
+// @Summary Выход из системы
+// @Description Завершает сессию пользователя
+// @Tags session
+// @Produce json
+// @Security CookieAuth
+// @Success 200 {object} map[string]string
+// @Router /session/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	session, err := h.sessionManager.GetSession(r, "auth-session")
 	if err != nil {
@@ -371,6 +438,15 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllUsers возвращает список всех зарегистрированных пользователей
+// GetAllUsers godoc
+// @Summary Список всех пользователей
+// @Description Возвращает список всех зарегистрированных пользователей
+// @Tags session
+// @Produce json
+// @Security CookieAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string
+// @Router /session/users [get]
 func (h *AuthHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userStorage.GetAllUsers()
 	if err != nil {

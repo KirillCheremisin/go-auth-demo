@@ -1,0 +1,230 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: Демонстрационное приложение аутентификации на Go
+  title: Auth Demo API
+  version: "1.0"
+paths:
+  /jwt/profile:
+    get:
+      description: Возвращает данные пользователя через JWT токен
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение профиля (JWT)
+      tags:
+      - jwt
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Аутентификация пользователя и создание сессии
+      parameters:
+      - description: Данные входа
+        example: '{"email": "user@example.com", "password": "password123"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Вход через сессии
+      tags:
+      - auth
+  /login-jwt:
+    post:
+      consumes:
+      - application/json
+      description: Аутентификация пользователя и получение JWT токенов
+      parameters:
+      - description: Данные входа
+        example: '{"email": "user@example.com", "password": "password123"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Вход через JWT
+      tags:
+      - auth
+  /refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет access token используя refresh token
+      parameters:
+      - description: Refresh token
+        example: '{"refresh_token": "eyJhbGciOiJ..."}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновление access token
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Создает нового пользователя
+      parameters:
+      - description: Данные регистрации
+        example: '{"email": "user@example.com", "password": "password123"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация пользователя
+      tags:
+      - auth
+  /session/logout:
+    post:
+      description: Завершает сессию пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Выход из системы
+      tags:
+      - session
+  /session/profile:
+    get:
+      description: Возвращает данные пользователя через сессии
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Получение профиля (сессии)
+      tags:
+      - session
+  /session/users:
+    get:
+      description: Возвращает список всех зарегистрированных пользователей
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - CookieAuth: []
+      summary: Список всех пользователей
+      tags:
+      - session
+securityDefinitions:
+  BearerAuth:
+    description: JWT токен в формате "Bearer {token}"
+    in: header
+    name: Authorization
+    type: apiKey
+  CookieAuth:
+    description: Сессионная cookie
+    in: cookie
+    name: auth-session
+    type: apiKey
+swagger: "2.0"

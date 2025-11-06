@@ -15,11 +15,29 @@ import (
 	"auth-demo/internal/handlers"
 	"auth-demo/internal/storage"
 
+	_ "auth-demo/docs"
+
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// @title Auth Demo API
+// @version 1.0
+// @description Демонстрационное приложение аутентификации на Go
+// @host localhost:8080
+// @BasePath /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT токен в формате "Bearer {token}"
+
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name auth-session
+// @description Сессионная cookie
 func main() {
 	// Загрузка .env файла
 	if err := godotenv.Load(); err != nil {
@@ -57,6 +75,9 @@ func main() {
 
 	// Настройка маршрутизатора
 	r := mux.NewRouter()
+
+	// swagger
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	// Public routes
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
